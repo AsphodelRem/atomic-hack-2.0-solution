@@ -3,7 +3,7 @@ import json
 import os
 
 
-def relative_to_absolute(rel_x, rel_y, width, height, img_width, img_height):
+def relative_to_absolute(rel_x, rel_y, width, height, img_width, img_height) -> list:
     x = rel_x * img_width
     y = rel_y * img_height
     w = width * img_width
@@ -11,9 +11,8 @@ def relative_to_absolute(rel_x, rel_y, width, height, img_width, img_height):
     return [x, y, w, h]
 
 
-def convert_csv_to_coco(csv_file, output_file):
-    data = pd.read_csv(csv_file)
-    data = data.dropna()
+def convert_csv_to_coco(dataframe: pd.DataFrame, output_file: str) -> None:
+    dataframe = dataframe.dropna()
 
     coco_format = {
         'images': [],
@@ -24,7 +23,7 @@ def convert_csv_to_coco(csv_file, output_file):
     annotation_id = 1
     image_id = 1
 
-    classes = data['class'].unique()
+    classes = dataframe['class'].unique()
     for i, cls in enumerate(classes):
         coco_format['categories'].append({
             'id': int(cls),
@@ -34,7 +33,7 @@ def convert_csv_to_coco(csv_file, output_file):
 
     image_info = {}
 
-    for index, row in data.iterrows():
+    for index, row in dataframe.iterrows():
         file_path = row['jpg_file']
         cls = row['class']
         rel_x = row['x']
@@ -72,8 +71,3 @@ def convert_csv_to_coco(csv_file, output_file):
     with open(output_file, 'w') as f:
         json.dump(coco_format, f)
 
-
-if __name__ == '__main__':
-    csv_file = '/workspace/datasets/hack/data/weld_data/weld_data.csv'
-    output_file = 'metadata.json'
-    convert_csv_to_coco(csv_file, output_file)
