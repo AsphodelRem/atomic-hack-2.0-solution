@@ -16,6 +16,8 @@ class AtomicModelWrapper(L.LightningModule):
 
         self.config = config
 
+        torch.set_float32_matmul_precision('medium')
+
     def forward(self, pixel_values, pixel_mask):
         return self.model(
             pixel_values=pixel_values,
@@ -64,13 +66,13 @@ class AtomicModelWrapper(L.LightningModule):
             {
                 'params': [p for n, p in self.named_parameters()
                            if 'backbone' in n and p.requires_grad],
-                "lr": self.config['model_parameters']['lr'],
+                "lr": self.config['optimizer_parameters']['learning_rate'],
             },
         ]
         optimizer = torch.optim.AdamW(
             param_dicts,
-            lr=self.config['model_parameters']['lr'],
-            weight_decay=self.weight_decay,
+            lr=self.config['optimizer_parameters']['learning_rate'],
+            weight_decay=self.config['optimizer_parameters']['weight_decay'],
             fused=True
         )
 
