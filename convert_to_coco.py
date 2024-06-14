@@ -51,14 +51,15 @@ def convert_csv_to_coco(dataframe: pd.DataFrame, output_file: str) -> None:
                 'height': img_height
             })
             image_id += 1
+            current_image_id = image_id
         else:
-            image_id, img_width, img_height = image_info[file_path]
+            current_image_id, img_width, img_height = image_info[file_path]
 
         bbox = relative_to_absolute(rel_x, rel_y, width, height, img_width, img_height)
 
         coco_format['annotations'].append({
             'id': annotation_id,
-            'image_id': image_id,
+            'image_id': current_image_id,
             'category_id': int(cls),
             'bbox': bbox,
             'area': bbox[2] * bbox[3],
