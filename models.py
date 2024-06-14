@@ -1,5 +1,6 @@
 from transformers import AutoImageProcessor, AutoModelForObjectDetection
 import lightning as L
+import torch
 
 
 class AtomicModelWrapper(L.LightningModule):
