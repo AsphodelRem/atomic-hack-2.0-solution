@@ -3,6 +3,7 @@ import torch
 import torch.nn as nn
 import torchvision
 import pandas as pd
+import numpy as np
 
 import convert_to_coco as ctc
 
@@ -28,6 +29,14 @@ class AtomicDataset(torchvision.datasets.CocoDetection):
 
     def __getitem__(self, idx):
         img, target = super(AtomicDataset, self).__getitem__(idx)
+
+        # img = np.array(img)
+        # if img.shape[1] != 3840:
+        #     img = np.pad(img, ((0, 0), (0, 3840 - img.shape[1]), (0, 0)))
+        #
+        # if img.shape[2] != 3840:
+        #     img = np.pad(img, ((0, 0), (0, 0), (0, 3840 - img.shape[2])))
+
         image_id = self.ids[idx]
 
         target = {'image_id': image_id, 'annotations': target}
@@ -39,7 +48,8 @@ class AtomicDataset(torchvision.datasets.CocoDetection):
 
     @staticmethod
     def create_train_test_split(config: dict) -> None:
-        metadata = pd.read_csv(config['metadata_parameters']['path_to_unsplitted_metadata']).dropna().sample(frac=1)
+        metadata = pd.read_csv(config['metadata_parameters']['path_to_unsplitted_metadata']).dropna()
+
         split_index = int(len(metadata) * config['metadata_parameters']['split_ratio'])
 
         # Split on train and test
@@ -59,14 +69,7 @@ class AtomicDataset(torchvision.datasets.CocoDetection):
     @staticmethod
     def collate_fn(batch, feature_extractor):
         pixel_values = [item[0] for item in batch]
-        encoding = feature_extractor.pad_and_create_pixel_mask(
-            pixel_values,
-            return_tensors='pt'
-        )
+        encoding = feature_extractor.pad_and_create_pixel_mask(pixel_values, return_tensors="pt")
         labels = [item[1] for item in batch]
-        batch = {
-            'pixel_values': encoding['pixel_values'],
-            'pixel_mask': encoding['pixel_mask'],
-            'labels': labels
-        }
+        batch = {'pixel_values': encoding['pixel_values'], 'pixel_mask': encoding['pixel_mask'], 'labels': labels}
         return batch
