@@ -1,4 +1,4 @@
-from transformers import AutoImageProcessor, AutoModelForObjectDetection
+from transformers import AutoImageProcessor, AutoModelForObjectDetection, AutoFeatureExtractor
 import lightning as L
 import torch
 
@@ -7,7 +7,7 @@ class AtomicModelWrapper(L.LightningModule):
     def __init__(self, config: dict):
         super().__init__()
 
-        self.processor = AutoImageProcessor.from_pretrained(
+        self.processor = AutoFeatureExtractor.from_pretrained(
             config["model_parameters"]["model_name"]
         )
         self.model = AutoModelForObjectDetection.from_pretrained(
@@ -45,16 +45,17 @@ class AtomicModelWrapper(L.LightningModule):
 
     def training_step(self, batch, batch_idx):
         loss, loss_dict = self.step(batch, batch_idx)
-        self.log('training_loss', loss)
+        self.log('training_loss', loss, prog_bar=True)
+
         for k, v in loss_dict.items():
-            self.log('train_' + k, v.item())
+            self.log('train_' + k, v.item(), prog_bar=True)
         return loss
 
     def validation_step(self, batch, batch_idx):
         loss, loss_dict = self.step(batch, batch_idx)
-        self.log('validation_loss', loss)
+        self.log('validation_loss', loss, prog_bar=True)
         for k, v in loss_dict.items():
-            self.log('validation_' + k, v.item())
+            self.log('validation_' + k, v.item(), prog_bar=True)
         return loss
 
     def configure_optimizers(self):
