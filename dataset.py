@@ -13,87 +13,13 @@ from torchvision.transforms import functional as F
 import convert_to_coco as ctc
 
 
-class AtomicDataset(torchvision.datasets.CocoDetection):
-    def __init__(
-            self,
-            config: dict,
-            processor,
-            train: bool = False
-    ):
-        metadata = config['metadata_parameters']['path_to_train_metadata'] \
-            if train else config['metadata_parameters']['path_to_test_metadata']
-
-        super(AtomicDataset, self).__init__(
-            config['metadata_parameters']['path_to_data'],
-            metadata
-        )
-
-        self.processor = processor
-        self.config = config
-        self.train = train
-        file = open(config['metadata_parameters']['path_to_train_metadata'])
-        self.metadata = json.load(file)
-
-    def __getitem__(self, idx):
-        target = self.metadata['annotations'][idx]
-        image_id = target['image_id']
-
-        img = Image.open(
-            os.path.join(
-                self.config['metadata_parameters']['path_to_data'],
-                self.metadata['images'][image_id + 1]["file_name"]
-            )
-        ).convert('RGB')
-
-        if self.train:
-            img = augment(np.array(img))
-
-        target = {'image_id': image_id, 'annotations': [target]}
-
-        encoding = self.processor(images=img, annotations=target, return_tensors="pt")
-
-        pixel_values = encoding['pixel_values'].squeeze()
-        target = encoding['labels'][0]
-
-        return pixel_values, target
-
-    @staticmethod
-    def create_train_test_split(config: dict) -> None:
-        metadata = pd.read_csv(config['metadata_parameters']['path_to_unsplitted_metadata']).dropna()
-
-        split_index = int(len(metadata) * config['metadata_parameters']['split_ratio'])
-
-        # Split on train and test
-        train_metadata = metadata[:split_index]
-        test_metadata = metadata[split_index:]
-
-        # Save as json in COCO format
-        ctc.convert_csv_to_coco(
-            train_metadata,
-            config['metadata_parameters']['path_to_train_metadata']
-        )
-        ctc.convert_csv_to_coco(
-            test_metadata,
-            config['metadata_parameters']['path_to_test_metadata']
-        )
-
-    @staticmethod
-    def collate_fn(self, batch):
-        pixel_values = [item[0] for item in batch]
-        encoding = self.processor.pad(pixel_values, return_tensors="pt")
-        labels = [item[1] for item in batch]
-        batch = {
-            'pixel_values': encoding['pixel_values'],
-            'pixel_mask': encoding['pixel_mask'],
-            'labels': labels
-        }
-        return batch
-
-
-class AtomicDatasetV2(Dataset):
-    def __init__(self, csv_file, root_dir, config, transforms=None):
+class AtomicDataset(Dataset):
+    def __init__(self, config, is_train: bool=False, transforms=None):
+        csv_file = config['metadata_parameters']['path_to_train_metadata'] if is_train \
+            else config['metadata_parameters']['path_to_test_metadata']
+        
         self.annotations = pd.read_csv(csv_file).dropna()
-        self.root_dir = root_dir
+        self.root_dir = config['metadata_parameters']['path_to_data']
         self.transforms = transforms
         self.config = config
 
@@ -111,10 +37,12 @@ class AtomicDatasetV2(Dataset):
         width = self.annotations.iloc[idx, 6]
 
         w, h = img.size
-        xmin = rel_x * w
-        ymin = rel_y * h
-        xmax = xmin + width * w
-        ymax = ymin + height * h
+        normal_width = width * w
+        normal_height = height * h
+        xmin = rel_x * w - normal_width // 2
+        ymin = rel_y * h - normal_height // 2
+        xmax = xmin + normal_width
+        ymax = ymin + normal_height
 
         boxes.append([xmin, ymin, xmax, ymax])
         labels.append(label)
@@ -126,11 +54,11 @@ class AtomicDatasetV2(Dataset):
         iscrowd = torch.zeros((len(boxes),), dtype=torch.int64)
 
         target = {
-            "boxes": boxes,
-            "labels": labels,
-            "image_id": image_id,
-            "area": area,
-            "iscrowd": iscrowd
+            'boxes': boxes,
+            'labels': labels,
+            'image_id': image_id,
+            'area': area,
+            'iscrowd': iscrowd
         }
 
         img = F.to_tensor(img)
@@ -144,13 +72,18 @@ class AtomicDatasetV2(Dataset):
 
     @staticmethod
     def create_train_test_split(config: dict) -> None:
-        metadata = pd.read_csv(config['metadata_parameters']['path_to_unsplitted_metadata']).dropna()
-
+        metadata = pd.read_csv(
+            config['metadata_parameters']['path_to_unsplitted_metadata']
+        ).dropna()
         split_index = int(len(metadata) * config['metadata_parameters']['split_ratio'])
 
         # Split on train and test
         train_metadata = metadata[:split_index]
         test_metadata = metadata[split_index:]
 
-        train_metadata.to_csv(config['metadata_parameters']['path_to_train_metadata'])
-        test_metadata.to_csv(config['metadata_parameters']['path_to_test_metadata'])
+        train_metadata.to_csv(
+            config['metadata_parameters']['path_to_train_metadata']
+        )
+        test_metadata.to_csv(
+            config['metadata_parameters']['path_to_test_metadata']
+        )
