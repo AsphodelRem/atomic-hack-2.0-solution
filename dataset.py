@@ -87,3 +87,7 @@ class AtomicDataset(Dataset):
         test_metadata.to_csv(
             config['metadata_parameters']['path_to_test_metadata']
         )
+
+    @staticmethod
+    def collate_fn(batch) -> tuple:
+        return tuple(zip(*batch))
