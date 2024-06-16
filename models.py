@@ -6,14 +6,14 @@ from torchvision.models.detection import fasterrcnn_resnet50_fpn
 
 
 class AtomicFasterRCNN(L.LightningModule):
-    def __init__(self, config, num_classes):
+    def __init__(self, config):
         super(AtomicFasterRCNN, self).__init__()
         self.model = fasterrcnn_resnet50_fpn(pretrained=True)
         
         in_features = self.model.roi_heads.box_predictor.cls_score.in_features
         self.model.roi_heads.box_predictor = FastRCNNPredictor(
             in_features,
-            num_classes
+            config['data_parameters']['num_classes']
         )
         self.config = config
 
